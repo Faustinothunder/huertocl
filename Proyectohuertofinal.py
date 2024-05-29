@@ -13,6 +13,51 @@ from dateutil import parser
 modelo = joblib.load('mejor_modelo_dia_noche.pkl')
 df = joblib.load('datos_huerto.pkl')
 
+from io import BytesIO
+def save_fig_to_bytesio(fig):
+    buffer = BytesIO()
+    fig.savefig(buffer, format='png')
+    buffer.seek(0)
+    return buffer
+
+def modificar_eje_x(fig, ax, fechas):
+    if len(fechas.dt.date.unique()) == 1:
+        # Mostrar todas las horas sin los minutos
+        ax.xaxis.set_major_locator(mdates.HourLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H'))
+    else:
+        ax.xaxis.set_major_locator(mdates.DayLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
+    fig.autofmt_xdate()
+
+# Función para configurar el botón de descarga
+def configurar_boton_descarga(fig, fechas):
+    if len(fechas.dt.date.unique()) == 1:
+        nombre_archivo = fechas.dt.date.unique()[0].strftime('%Y-%m-%d') + '.png'
+    else:
+        nombre_archivo = fechas.dt.to_period('M').unique()[0].strftime('%Y-%m') + '.png'
+
+    fig_buffer = save_fig_to_bytesio(fig)
+    st.download_button(
+        label="Descargar gráficas",
+        data=fig_buffer,
+        file_name=nombre_archivo,
+        mime="image/png"
+    )
+
+def configurar_boton_imprimir(fig, fechas):
+    """
+    Configura el botón de imprimir gráfica para que use la fecha o el mes como nombre del archivo.
+    """
+    if len(fechas.unique()) == 1:
+        nombre_archivo = fechas.dt.date.unique()[0].strftime('%Y-%m-%d') + '.png'
+    else:
+        nombre_archivo = fechas.dt.to_period('M').unique()[0].strftime('%Y-%m') + '.png'
+    
+    if st.button('Imprimir Gráfica'):
+        fig.savefig(nombre_archivo)
+        st.success(f'Gráfica guardada como {nombre_archivo}')
+
 def obtenerDatos():
     try:
         fechaInicio = datetime(2024, 3, 8)
@@ -157,40 +202,37 @@ st.set_page_config(layout="wide", page_title="Huerto Inteligente 4.0", page_icon
 st.markdown(
     """
     <style>
-    .main {
-        background: linear-gradient(to right, #00FFFF, #007FFF, #0000FF);
-        color: #333333;
-        font-family: 'Arial', sans-serif;
-    }
-    .centered-title {
-        text-align: center;
-        color: white;
-        font-size: 3rem;
-        margin-bottom: 20px;
-    }
-    .subheader {
-        color: white;
-        font-size: 1.6rem;
-        margin-top: 20px;
-        margin-bottom: 10px;
-    }
-    .dataframe-container, .metric-container, .summary-container {
-        background-color: rgba(255, 255, 255, 0.9);
-        border-radius: 10px;
-        border: 2px solid #000000;
-        padding: 10px;
-        margin-bottom: 20px;
-    }
-    .metric {
-        font-size:  1.4rem;
-        color: #FFFFFF;
-    }
-    .custom-select select {
-        border: 2px solid black !important;
-    }
-    .streamlit-expanderHeader {
-        background-color: #FFFFFF !important; /* Cambia el color a naranja, puedes ajustarlo según tus preferencias */
-
+        .main {
+            background: linear-gradient(to right, #58d8d8, #4fcfcf, #007575);
+            color: #333333;
+            font-family: 'Arial', sans-serif;
+        }
+        .centered-title {
+            text-align: center;
+            color: white;
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+        .subheader {
+            color: white;
+            font-size: 1.5rem;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+        .dataframe-container, .metric-container, .summary-container {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            border: 2px solid #D3D3D3;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .metric {
+            font-size: 1.2rem;
+            color: white;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
     </style>
     """,
     unsafe_allow_html=True
@@ -199,23 +241,30 @@ st.markdown(
 # Título de la aplicación
 st.markdown('<h1 class="centered-title">Huerto Inteligente 4.0</h1>', unsafe_allow_html=True)
 
-
-with st.expander("Normas de Uso del Programa"):
-    st.markdown("""
-    <div style='color: #FFFFFF;'>
-    1. <strong>Actualización de Datos:</strong>
-        - El botón de 'Actualizar' carga los datos desde la última actualización hasta el momento actual. Este proceso tarda aproximadamente un minuto. Es recomendable usar esta función para obtener los datos más recientes.
-    
-    2. <strong>Selección de Año y Mes:</strong>
-        - En la columna izquierda, selecciona un año y un mes. A continuación, la tabla cargará los datos predichos por el modelo para todos los días disponibles en ese año y mes.
-    
-    3. <strong>Gráficas Diarias:</strong>
-        - En la columna derecha, selecciona una fecha específica. Para esa fecha, se generarán tres tipos de gráficas: temperatura del suelo, humedad del suelo y conductibilidad.
-    
-    4. <strong>Generación de Gráficas Mensuales:</strong>
-        - Para crear gráficas mensuales, primero selecciona un año y un mes. Se cargarán todos los días disponibles para esa selección. Luego, elige los días específicos para los cuales deseas generar las gráficas y pulsa el botón 'Generar Gráficas'.
+with st.expander(":blue[:rainbow-background[Normas de Uso del Programa]]"):
+    st.write("""
+    <div style='background-color: #C9E3F2; padding: 10px; border-radius: 5px;'>
+        <p><strong>Actualización de Datos:</strong></p>
+        <ul>
+            <li>El botón de 'Actualizar' carga los datos desde la última actualización hasta el momento actual. Este proceso tarda aproximadamente un minuto. Es recomendable usar esta función para obtener los datos más recientes.</li>
+        </ul>
+        <p><strong>Selección de Año y Mes:</strong></p>
+        <ul>
+            <li>En la columna izquierda, selecciona un año y un mes. A continuación, la tabla cargará los datos predichos por el modelo para todos los días disponibles en ese año y mes.</li>
+        </ul>
+        <p><strong>Gráficas Diarias:</strong></p>
+        <ul>
+            <li>En la columna derecha, selecciona una fecha específica. Para esa fecha, se generarán tres tipos de gráficas: temperatura del suelo, humedad del suelo y conductibilidad.</li>
+        </ul>
+        <p><strong>Generación de Gráficas Mensuales:</strong></p>
+        <ul>
+            <li>Para crear gráficas mensuales, primero selecciona un año y un mes. Se cargarán todos los días disponibles para esa selección. Luego, elige los días específicos para los cuales deseas generar las gráficas y pulsa el botón 'Generar Gráficas'.</li>
+        </ul>
     </div>
+             <br>
     """, unsafe_allow_html=True)
+
+
 
 # Esto es para actualizar el dataframe que consulta los datos.
 # Tardará unos minutos pero luego muestra los datos completamente actualizados.
@@ -316,38 +365,36 @@ with col2:
 
 # Gráfica de las Mediciones de un Día
 if not df_seleccionado.empty:
-    st.markdown('<div class="subheader">Gráfica de las Mediciones de un Día</div>', unsafe_allow_html=True)
-
+    st.markdown('<div class="subheader">Gráficas de las Mediciones de un Día</div>', unsafe_allow_html=True)
+    
     fig, axes = plt.subplots(1, 3, figsize=(20, 5), sharex=True)
-
+    
     columnas = ["Temperatura", "Humedad", "Conductibilidad"]
     colores_grafica = ['red', 'blue', 'green']
     titulos = ["Temperatura del Suelo", "Humedad del Suelo", "Conductibilidad"]
-
+    
     for i, ax in enumerate(axes):
         ax.plot(df_seleccionado["Fecha"], df_seleccionado[columnas[i]], label=columnas[i], color=colores_grafica[i])
-
+        
         for j in range(len(df_seleccionado) - 1):
             color = 'orange' if df_seleccionado["Predicciones"].iloc[j] == 0 else 'lightblue'
             ax.axvspan(df_seleccionado["Fecha"].iloc[j], df_seleccionado["Fecha"].iloc[j+1], color=color, alpha=0.3)
-
+        
         ax.set_ylabel(columnas[i])
         ax.legend()
         ax.set_title(f"{titulos[i]} del {fecha_seleccionada_str}")
-
-    ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
-    axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    axes[-1].set_xlabel("Hora")
-
+    
+    modificar_eje_x(fig, axes[-1], df_seleccionado["Fecha"])
+    axes[-1].set_xlabel("Hora" if len(df_seleccionado["Fecha"].dt.date.unique()) == 1 else "Fecha")
+    
     handles = [plt.Line2D([0], [0], color='orange', lw=4, label='Noche'),
                plt.Line2D([0], [0], color='lightblue', lw=4, label='Día')]
     fig.legend(handles=handles, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
-
+    
     plt.tight_layout()
-
+    
     st.pyplot(fig)
-else:
-    st.write("No hay datos disponibles para la fecha seleccionada.")
+    configurar_boton_descarga(fig, df_seleccionado["Fecha"])
 
 # Selectores de año y mes para gráficas
 st.markdown('<div class="subheader">Generar Gráficas Mensuales</div>', unsafe_allow_html=True)
@@ -363,8 +410,14 @@ show_date_selector = False
 if 'df_filtrado' in locals() and not df_filtrado.empty:
     show_date_selector = True
     fechas_seleccionadas = st.multiselect("Selecciona varios días", pd.date_range(start=df_filtrado['Fecha'].min(), end=df_filtrado['Fecha'].max(), freq='D'))
+import matplotlib.colors as mcolors
+import random
+# Dividir la página en dos columnas
+col1, col2 = st.columns([1, 6])
 
-if st.button("Generar gráficas"):
+# Botón para la primera gráfica
+# Botón para la primera gráfica
+if st.button("Gráfica unión de días"):
     if show_date_selector and len(fechas_seleccionadas) > 0:
         fechas_seleccionadas_str = [fecha.strftime('%d-%m-%Y') for fecha in fechas_seleccionadas]
         df_seleccionado = df_filtrado[df_filtrado["Fecha"].dt.strftime('%d-%m-%Y').isin(fechas_seleccionadas_str)]
@@ -375,14 +428,16 @@ if st.button("Generar gráficas"):
             fig, axs = plt.subplots(1, 3, figsize=(15, 5))
             for i, (columna, color, titulo) in enumerate(zip(["Temperatura", "Humedad", "Conductibilidad"], ['red', 'blue', 'green'], ["Temperatura del Suelo por Día", "Humedad del Suelo por Día", "Conductibilidad por Día"])):
                 axs[i].plot(df_seleccionado["Fecha"], df_seleccionado[columna], color=color)
-                axs[i].set_xlabel("Fecha")
+                axs[i].set_xlabel("Hora" if len(df_seleccionado["Fecha"].dt.date.unique()) == 1 else "Fecha")
                 axs[i].set_ylabel(columna)
                 axs[i].set_title(titulo)
-                axs[i].xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
-                plt.setp(axs[i].get_xticklabels(), rotation=45)
+                modificar_eje_x(fig, axs[i], df_seleccionado["Fecha"])  # Modificar el eje X
 
             plt.tight_layout()
             st.pyplot(fig)
+
+            # Configurar el botón de descarga
+            configurar_boton_descarga(fig, df_seleccionado["Fecha"])
         else:
             st.write("No hay datos disponibles para las fechas seleccionadas.")
     else:
@@ -390,3 +445,40 @@ if st.button("Generar gráficas"):
             st.write("Por favor selecciona un año y mes primero.")
         else:
             st.write("Por favor selecciona al menos un día.")
+
+# Botón para la segunda gráfica
+if st.button("Gráfica comparación días"):
+    if show_date_selector and len(fechas_seleccionadas) > 0:
+        fechas_seleccionadas_str = [fecha.strftime('%d-%m-%Y') for fecha in fechas_seleccionadas]
+        df_seleccionado = df_filtrado[df_filtrado["Fecha"].dt.strftime('%d-%m-%Y').isin(fechas_seleccionadas_str)]
+
+        if not df_seleccionado.empty:
+            df_seleccionado = df_seleccionado.sort_values(by='Fecha')
+
+            fig, axs = plt.subplots(1, 3, figsize=(18, 6))  # Una fila con tres columnas para cada medición
+
+            # Crear una lista de colores única para cada día
+            colores = random.sample(list(mcolors.CSS4_COLORS.values()), len(fechas_seleccionadas))
+
+            for i, (columna, titulo) in enumerate(zip(["Temperatura", "Humedad", "Conductibilidad"], ["Temperatura del Suelo", "Humedad del Suelo", "Conductibilidad"])):
+                for j, fecha in enumerate(fechas_seleccionadas):
+                    df_dia = df_seleccionado[df_seleccionado["Fecha"].dt.date == fecha.date()]
+                    axs[i].plot(df_dia["Fecha"].dt.hour, df_dia[columna], color=colores[j], label=fecha.strftime('%d-%m-%Y'))
+                axs[i].set_xlabel("Hora")
+                axs[i].set_ylabel(columna)
+                axs[i].set_title(titulo)
+                axs[i].legend()
+
+            plt.tight_layout()
+            st.pyplot(fig)
+
+            # Configurar el botón de descarga
+            configurar_boton_descarga(fig, df_seleccionado["Fecha"])
+        else:
+            st.write("No hay datos disponibles para las fechas seleccionadas.")
+    else:
+        if not show_date_selector:
+            st.write("Por favor selecciona un año y mes primero.")
+        else:
+            st.write("Por favor selecciona al menos un día.")
+

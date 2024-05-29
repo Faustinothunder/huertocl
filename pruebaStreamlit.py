@@ -156,35 +156,38 @@ st.set_page_config(layout="wide", page_title="Huerto Inteligente 4.0", page_icon
 st.markdown(
     """
     <style>
-    .main {
-        background: linear-gradient(to right, #00FFFF, #007FFF, #0000FF);
-        color: #333333;
-        font-family: 'Arial', sans-serif;
-    }
-    .centered-title {
-        text-align: center;
-        color: white;
-        font-size: 3rem;
-        margin-bottom: 20px;
-    }
-    .subheader {
-        color: white;
-        font-size: 1.5rem;
-        margin-top: 20px;
-        margin-bottom: 10px;
-    }
-    .dataframe-container, .metric-container, .summary-container {
-        background-color: rgba(255, 255, 255, 0.9);
-        border-radius: 10px;
-        border: 2px solid #D3D3D3;
-        padding: 10px;
-        margin-bottom: 20px;
-    }
-    .metric {
-        font-size: 1.2rem;
-        color: #333333;
-    }
-    </style>
+        .main {
+            background: linear-gradient(to right, #58d8d8, #4fcfcf, #007575);
+            color: #333333;
+            font-family: 'Arial', sans-serif;
+        }
+        .centered-title {
+            text-align: center;
+            color: white;
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+        .subheader {
+            color: white;
+            font-size: 1.5rem;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+        .dataframe-container, .metric-container, .summary-container {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            border: 2px solid #D3D3D3;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .metric {
+            font-size: 1.2rem;
+            color: white;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+</style>
     """,
     unsafe_allow_html=True
 )
@@ -331,7 +334,7 @@ if st.button("Generar gráficas"):
             fig_buffer = save_fig_to_bytesio(fig)
             plt.tight_layout()
             st.pyplot(fig)
-            
+
             st.download_button(
                 label="Descargar gráficas",
                 data=fig_buffer,
