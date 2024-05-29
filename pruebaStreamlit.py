@@ -304,6 +304,13 @@ if 'df_filtrado' in locals() and not df_filtrado.empty:
     show_date_selector = True
     fechas_seleccionadas = st.multiselect("Selecciona varios días", pd.date_range(start=df_filtrado['Fecha'].min(), end=df_filtrado['Fecha'].max(), freq='D'))
 
+from io import BytesIO
+def save_fig_to_bytesio(fig):
+    buffer = BytesIO()
+    fig.savefig(buffer, format='png')
+    buffer.seek(0)
+    return buffer
+
 if st.button("Generar gráficas"):
     if show_date_selector and len(fechas_seleccionadas) > 0:
         fechas_seleccionadas_str = [fecha.strftime('%d-%m-%Y') for fecha in fechas_seleccionadas]
@@ -320,9 +327,17 @@ if st.button("Generar gráficas"):
                 axs[i].set_title(titulo)
                 axs[i].xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
                 plt.setp(axs[i].get_xticklabels(), rotation=45)
-
+            
+            fig_buffer = save_fig_to_bytesio(fig)
             plt.tight_layout()
             st.pyplot(fig)
+            
+            st.download_button(
+                label="Descargar gráficas",
+                data=fig_buffer,
+                file_name="graficas.png",
+                mime="image/png"
+            )
         else:
             st.write("No hay datos disponibles para las fechas seleccionadas.")
     else:
